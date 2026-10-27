@@ -1,0 +1,19 @@
+{
+  "name": "smart-id-card-exam-paper-dispenser",
+  "version": "1.0.0",
+  "description": "Automated color-coded ID card strap recognition and 3D exam paper dispenser simulation",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "threejs",
+    "webcam",
+    "computer-vision",
+    "color-detection",
+    "automation",
+    "dispenser"
+  ],
+  "author": "",
+  "license": "MIT"
+}

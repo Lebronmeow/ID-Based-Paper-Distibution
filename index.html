@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Smart ID Card Exam Paper Dispenser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+/* ─── Clean, Bright, High-Contrast Modern Theme ─── */
+:root {
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Consolas, Menlo, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg-page);
+  color: var(--text-main);
+  font: 400 13px/1.5 var(--font-sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header ─── */
+.header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.header-titles h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+.header-titles p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.live-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+.live-dot.active {
+  background: #16a34a;
+  box-shadow: 0 0 6px rgba(22, 163, 74, 0.4);
+}
+
+/* ─── Grid Layout ─── */
+.main-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 440px 1fr;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+@media (max-width: 1024px) {
+  .main-layout { grid-template-columns: 1fr; }
+}
+
+/* ─── Clean White Cards ─── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.card-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+}
+.card-head h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+/* ─── Video Scanner Container ─── */
+.video-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: #0f172a;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+#webcam {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: scaleX(-1);
+}
+#augmentedCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+.video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #f8fafc;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.video-placeholder svg {
+  width: 40px;
+  height: 40px;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+/* ─── Action Buttons ─── */
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+.btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+.btn-primary:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+.btn-outline {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  color: var(--text-main);
+}
+.btn-outline:hover {
+  background: var(--bg-subtle);
+}
+.btn-outline.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eff6ff;
+}
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-flex { flex: 1; }
+
+/* ─── Branch Cards ─── */
+.branch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.branch-btn {
+  background: #ffffff;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.branch-btn:hover {
+  border-color: var(--b-color);
+  background: #fcfcfd;
+  transform: translateY(-1px);
+}
+.branch-btn.active-matched {
+  border-color: var(--b-color);
+  background: color-mix(in srgb, var(--b-color) 10%, #ffffff);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--b-color) 25%, transparent);
+}
+.branch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.branch-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-main);
+}
+.branch-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--b-color);
+}
+.branch-code {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.branch-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.branch-bar {
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.branch-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--b-color);
+  transition: width 0.15s ease;
+}
+
+/* ─── Live Diagnostics Box ─── */
+.diag-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.diag-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+.diag-lbl { color: var(--text-muted); }
+.diag-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-main);
+  font-weight: 500;
+}
+.color-swatch-sm {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* ─── Right: 3D Viewport ─── */
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+  background: #f8fafc;
+  min-height: 520px;
+}
+#threeCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.canvas-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+.dispenser-footer-hud {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border-strong);
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+}
+.hud-msg-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-main);
+}
+.hud-msg-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.hud-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hud-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+.hud-status-dot.active {
+  background: #2563eb;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.notice-box {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  font-size: 12px;
+  color: #1e40af;
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<!-- ─── Clean Header ─── -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-badge">AUTO DISPENSER</div>
+    <div class="header-titles">
+      <h1>Smart ID Card Exam Paper Dispenser</h1>
+      <p>Automated Color-Coded ID Strap Recognition & 3D Dispenser Simulation</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-pill">
+      <div class="live-dot" id="camStatusDot"></div>
+      <span id="camStatusText">Camera Off</span>
+    </div>
+  </div>
+</header>
+
+<!-- ─── Main Grid Layout ─── -->
+<main class="main-layout">
+
+  <!-- Left: Scanner Controls & Telemetry -->
+  <section class="card">
+    <div class="card-head">
+      <h2>📷 ID Card & Lanyard Scanner</h2>
+      <span style="font-size: 11px; color: var(--text-muted);">Real-Time Vision HUD</span>
+    </div>
+    <div class="card-body">
+
+      <!-- Webcam View with HUD -->
+      <div class="video-box">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="augmentedCanvas"></canvas>
+        <div class="video-placeholder" id="videoPlaceholder">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>Click "Start Webcam" to begin scanning</span>
+        </div>
+      </div>
+
+      <!-- Main Controls -->
+      <div class="btn-row">
+        <button class="btn btn-primary btn-flex" id="camBtn" onclick="toggleWebcam()">
+          <span id="camBtnLabel">Start Webcam</span>
+        </button>
+        <button class="btn btn-outline btn-flex" id="autoBtn" onclick="toggleAuto()" disabled>
+          Auto-Scan: <span id="autoState" style="margin-left: 2px;">ON</span>
+        </button>
+        <button class="btn btn-outline" id="scanOnceBtn" onclick="scanOnce()" disabled title="Scan single frame">
+          Scan Now
+        </button>
+      </div>
+
+      <!-- Quick Tips -->
+      <div class="notice-box">
+        💡 <strong>How to test:</strong> Hold your ID card lanyard inside the box. You can also click directly on your strap in the camera view to sample it, or click any branch card below to trigger a test dispense!
+      </div>
+
+      <!-- Branch Selection Cards & Meters -->
+      <div class="branch-grid">
+        <!-- Green: Computer Eng -->
+        <button class="branch-btn" id="btnGreen" style="--b-color: #16a34a;" onclick="triggerDispense('green', 'Manual Card Select')">
+          <div class="branch-header">
+            <div class="branch-title"><div class="branch-dot"></div> Computer Eng.</div>
+            <div class="branch-code">COMP</div>
+          </div>
+          <div class="branch-sub">Green Strap • Distributed Systems</div>
+          <div class="branch-bar"><div class="branch-bar-fill" id="barGreen"></div></div>
+        </button>
+
+        <!-- Yellow: Computer Science Eng -->
+        <button class="branch-btn" id="btnYellow" style="--b-color: #ca8a04;" onclick="triggerDispense('yellow', 'Manual Card Select')">
+          <div class="branch-header">
+            <div class="branch-title"><div class="branch-dot"></div> Comp. Science Eng.</div>
+            <div class="branch-code">CSE</div>
+          </div>
+          <div class="branch-sub">Yellow Strap • Algorithms</div>
+          <div class="branch-bar"><div class="branch-bar-fill" id="barYellow"></div></div>
+        </button>
+
+        <!-- Purple: Mechanical Eng -->
+        <button class="branch-btn" id="btnPurple" style="--b-color: #9333ea;" onclick="triggerDispense('purple', 'Manual Card Select')">
+          <div class="branch-header">
+            <div class="branch-title"><div class="branch-dot"></div> Mechanical Eng.</div>
+            <div class="branch-code">MECH</div>
+          </div>
+          <div class="branch-sub">Purple Strap • Robotics</div>
+          <div class="branch-bar"><div class="branch-bar-fill" id="barPurple"></div></div>
+        </button>
+
+        <!-- Red: Electronics & CS Eng -->
+        <button class="branch-btn" id="btnRed" style="--b-color: #dc2626;" onclick="triggerDispense('red', 'Manual Card Select')">
+          <div class="branch-header">
+            <div class="branch-title"><div class="branch-dot"></div> Electronics & CS</div>
+            <div class="branch-code">E&CS</div>
+          </div>
+          <div class="branch-sub">Red Strap • Embedded Systems</div>
+          <div class="branch-bar"><div class="branch-bar-fill" id="barRed"></div></div>
+        </button>
+      </div>
+
+      <!-- Real-Time Diagnostics -->
+      <div class="diag-card">
+        <div class="diag-item">
+          <span class="diag-lbl">Detected Color</span>
+          <span class="diag-val"><span class="color-swatch-sm" id="diagSwatch"></span><span id="diagRgb">None</span></span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-lbl">Color Metrics</span>
+          <span class="diag-val" id="diagHsl">—</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-lbl">Active Decision</span>
+          <span class="diag-val" id="diagDecision" style="color: var(--primary);">Waiting for ID card</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Right: 3D Animated Dispenser Viewport -->
+  <section class="card" style="padding: 0;">
+    <div class="card-head">
+      <h2>🖨️ 3D Exam Paper Dispenser</h2>
+      <span style="font-size: 11px; color: var(--text-muted);">Interactive 3D Simulation</span>
+    </div>
+    <div class="canvas-wrapper">
+      <canvas id="threeCanvas"></canvas>
+      <div class="canvas-badge">🖱️ Drag to rotate • Scroll to zoom</div>
+
+      <!-- Live Machine Status Bar -->
+      <div class="dispenser-footer-hud">
+        <div class="hud-status-indicator">
+          <div class="hud-status-dot" id="hudStatusDot"></div>
+          <div>
+            <div class="hud-msg-title" id="hudMainText">Dispenser Ready</div>
+            <div class="hud-msg-sub" id="hudSubText">Compartments: COMP (Green) • CSE (Yellow) • MECH (Purple) • E&CS (Red)</div>
+          </div>
+        </div>
+        <button class="btn btn-outline" onclick="reset3DCamera()">Reset View</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// BRANCH DATA & EXAM QUESTION PAPER DETAILS
+// ═══════════════════════════════════════════════════════════════════════════
+const BRANCHES = {
+  green: {
+    key: 'green',
+    label: 'Computer Engineering',
+    short: 'COMP',
+    color: '#16a34a',
+    hex: 0x16a34a,
+    paperTitle: 'BRANCH: COMPUTER ENGINEERING',
+    subject: 'Distributed Systems & Cloud Computing',
+    code: 'CS-501',
+    questions: [
+      'Explain consensus algorithms (Raft & Paxos) in distributed databases.',
+      'Compare microkernel architecture versus monolithic kernel design.',
+      'Design an automated paper dispensing controller using state machines.'
+    ]
+  },
+  yellow: {
+    key: 'yellow',
+    label: 'Computer Science Engineering',
+    short: 'CSE',
+    color: '#ca8a04',
+    hex: 0xca8a04,
+    paperTitle: 'BRANCH: COMPUTER SCIENCE & ENG.',
+    subject: 'Design & Analysis of Algorithms',
+    code: 'CSE-402',
+    questions: [
+      'Prove NP-Completeness of the Traveling Salesperson Problem.',
+      'Analyze amortized time complexity of dynamic array resizing.',
+      'Construct a Red-Black Tree after inserting sequence: 10, 85, 15, 70, 20.'
+    ]
+  },
+  purple: {
+    key: 'purple',
+    label: 'Mechanical Engineering',
+    short: 'MECH',
+    color: '#9333ea',
+    hex: 0x9333ea,
+    paperTitle: 'BRANCH: MECHANICAL ENGINEERING',
+    subject: 'Robotics & Mechatronics Automation',
+    code: 'ME-603',
+    questions: [
+      'Derive forward kinematics equations using Denavit-Hartenberg parameters.',
+      'Analyze stress distribution in a high-speed stepper motor shaft assembly.',
+      'Calculate feed velocity and torque for automated paper roller ejectors.'
+    ]
+  },
+  red: {
+    key: 'red',
+    label: 'Electronics & Computer Sci. Eng.',
+    short: 'E&CS',
+    color: '#dc2626',
+    hex: 0xdc2626,
+    paperTitle: 'BRANCH: ELECTRONICS & COMP. SCI.',
+    subject: 'Embedded Systems & Sensor Interfacing',
+    code: 'ECS-504',
+    questions: [
+      'Explain optical sensor calibration for ambient light rejection in IoT.',
+      'Design an ARM Cortex-M4 GPIO interrupt service routine for servo ejection.',
+      'Compare I2C versus SPI protocol timing diagrams for color sensors.'
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WEBCAM & COLOR TRACKER
+// ═══════════════════════════════════════════════════════════════════════════
+const video = document.getElementById('webcam');
+const augCanvas = document.getElementById('augmentedCanvas');
+const augCtx = augCanvas.getContext('2d');
+let stream = null;
+let isCamActive = false;
+let autoScan = true;
+let lastDispenseTime = 0;
+let lastDispenseBranch = null;
+
+// Virtual sampling canvas
+const sampleCanvas = document.createElement('canvas');
+const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+sampleCanvas.width = 160;
+sampleCanvas.height = 120;
+
+let smoothedScores = { green: 0, yellow: 0, purple: 0, red: 0 };
+
+async function toggleWebcam() {
+  if (isCamActive) {
+    stopWebcam();
+  } else {
+    await startWebcam();
+  }
+}
+
+async function startWebcam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+    });
+    video.srcObject = stream;
+    await video.play();
+
+    isCamActive = true;
+    document.getElementById('videoPlaceholder').style.display = 'none';
+    document.getElementById('camBtnLabel').textContent = 'Stop Webcam';
+    document.getElementById('camBtn').classList.remove('btn-primary');
+    document.getElementById('camBtn').classList.add('btn-outline');
+    document.getElementById('autoBtn').disabled = false;
+    document.getElementById('scanOnceBtn').disabled = false;
+    document.getElementById('camStatusDot').classList.add('active');
+    document.getElementById('camStatusText').textContent = 'Camera Active';
+
+    syncAugCanvas();
+    requestAnimationFrame(renderVideoTracking);
+  } catch (err) {
+    console.error(err);
+    alert('Unable to access webcam. Please check browser camera permissions.');
+  }
+}
+
+function stopWebcam() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  isCamActive = false;
+  document.getElementById('videoPlaceholder').style.display = 'flex';
+  document.getElementById('camBtnLabel').textContent = 'Start Webcam';
+  document.getElementById('camBtn').classList.add('btn-primary');
+  document.getElementById('camBtn').classList.remove('btn-outline');
+  document.getElementById('autoBtn').disabled = true;
+  document.getElementById('scanOnceBtn').disabled = true;
+  document.getElementById('camStatusDot').classList.remove('active');
+  document.getElementById('camStatusText').textContent = 'Camera Off';
+  augCtx.clearRect(0, 0, augCanvas.width, augCanvas.height);
+}
+
+function toggleAuto() {
+  autoScan = !autoScan;
+  const btn = document.getElementById('autoBtn');
+  const label = document.getElementById('autoState');
+  if (autoScan) {
+    label.textContent = 'ON';
+    btn.classList.add('active');
+  } else {
+    label.textContent = 'OFF';
+    btn.classList.remove('active');
+  }
+}
+
+function syncAugCanvas() {
+  const rect = augCanvas.getBoundingClientRect();
+  augCanvas.width = rect.width * window.devicePixelRatio;
+  augCanvas.height = rect.height * window.devicePixelRatio;
+}
+window.addEventListener('resize', syncAugCanvas);
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  const d = max - min;
+  if (d > 0.001) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r)      h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) h = ((b - r) / d + 2) * 60;
+    else               h = ((r - g) / d + 4) * 60;
+  }
+  return [h, s, l];
+}
+
+// Fabric strap classifier: accurately isolates lanyards from background & skin
+function classifyStrap(h, s, l) {
+  // Reject neutrals (walls, paper, shadows)
+  if (s < 0.16 || l < 0.10 || l > 0.90) return null;
+  // Reject human skin tones
+  if (h >= 10 && h <= 34 && s < 0.60 && l >= 0.25 && l <= 0.80) return null;
+
+  // Green
+  if (h >= 70 && h <= 170 && s >= 0.18 && l >= 0.12 && l <= 0.82) return 'green';
+  // Yellow
+  if (h >= 36 && h < 70 && s >= 0.22 && l >= 0.22 && l <= 0.85) return 'yellow';
+  // Purple
+  if (h >= 245 && h <= 325 && s >= 0.18 && l >= 0.12 && l <= 0.78) return 'purple';
+  // Red
+  if ((h >= 335 || h <= 25) && s >= 0.25 && l >= 0.14 && l <= 0.78) return 'red';
+
+  return null;
+}
+
+// Tap/Click on camera to sample color directly
+augCanvas.addEventListener('click', (e) => {
+  if (!isCamActive || !video.videoWidth) return;
+  const rect = augCanvas.getBoundingClientRect();
+  const clickX = (e.clientX - rect.left) / rect.width;
+  const clickY = (e.clientY - rect.top) / rect.height;
+
+  const sampleX = Math.floor((1 - clickX) * sampleCanvas.width);
+  const sampleY = Math.floor(clickY * sampleCanvas.height);
+
+  sampleCtx.drawImage(video, 0, 0, sampleCanvas.width, sampleCanvas.height);
+  const p = sampleCtx.getImageData(sampleX, sampleY, 1, 1).data;
+  const [h, s, l] = rgbToHsl(p[0], p[1], p[2]);
+
+  document.getElementById('diagSwatch').style.background = `rgb(${p[0]}, ${p[1]}, ${p[2]})`;
+  document.getElementById('diagRgb').textContent = `RGB(${p[0]}, ${p[1]}, ${p[2]})`;
+  document.getElementById('diagHsl').textContent = `H:${Math.round(h)}° S:${Math.round(s*100)}% L:${Math.round(l*100)}%`;
+
+  const match = classifyStrap(h, s, l);
+  if (match) {
+    triggerDispense(match, `Manual Pipette Click: ${BRANCHES[match].label}`);
+  } else {
+    document.getElementById('diagDecision').textContent = 'Neutral/Skin Tone. Click on colored strap!';
+  }
+});
+
+function renderVideoTracking() {
+  if (!isCamActive) return;
+
+  sampleCtx.drawImage(video, 0, 0, sampleCanvas.width, sampleCanvas.height);
+  const imgData = sampleCtx.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height);
+  const px = imgData.data;
+
+  augCtx.clearRect(0, 0, augCanvas.width, augCanvas.height);
+  const scaleX = augCanvas.width / sampleCanvas.width;
+  const scaleY = augCanvas.height / sampleCanvas.height;
+
+  // Center Reticle
+  const roi = {
+    x: Math.floor(sampleCanvas.width * 0.24),
+    y: Math.floor(sampleCanvas.height * 0.16),
+    w: Math.floor(sampleCanvas.width * 0.52),
+    h: Math.floor(sampleCanvas.height * 0.68)
+  };
+
+  const rx = (sampleCanvas.width - (roi.x + roi.w)) * scaleX;
+  const ry = roi.y * scaleY;
+  const rw = roi.w * scaleX;
+  const rh = roi.h * scaleY;
+
+  augCtx.save();
+  augCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+  augCtx.lineWidth = 2 * window.devicePixelRatio;
+  augCtx.setLineDash([8 * window.devicePixelRatio, 6 * window.devicePixelRatio]);
+  augCtx.strokeRect(rx, ry, rw, rh);
+
+  // Reticle Corner Accents
+  const cl = 16 * window.devicePixelRatio;
+  augCtx.setLineDash([]);
+  augCtx.strokeStyle = '#2563eb';
+  augCtx.lineWidth = 3 * window.devicePixelRatio;
+  augCtx.beginPath(); augCtx.moveTo(rx, ry + cl); augCtx.lineTo(rx, ry); augCtx.lineTo(rx + cl, ry); augCtx.stroke();
+  augCtx.beginPath(); augCtx.moveTo(rx + rw - cl, ry); augCtx.lineTo(rx + rw, ry); augCtx.lineTo(rx + rw, ry + cl); augCtx.stroke();
+  augCtx.beginPath(); augCtx.moveTo(rx, ry + rh - cl); augCtx.lineTo(rx, ry + rh); augCtx.lineTo(rx + cl, ry + rh); augCtx.stroke();
+  augCtx.beginPath(); augCtx.moveTo(rx + rw - cl, ry + rh); augCtx.lineTo(rx + rw, ry + rh); augCtx.lineTo(rx + rw, ry + rh - cl); augCtx.stroke();
+
+  augCtx.fillStyle = '#ffffff';
+  augCtx.font = `600 ${11 * window.devicePixelRatio}px var(--font-sans)`;
+  augCtx.textAlign = 'center';
+  augCtx.fillText('ALIGN ID CARD STRAP HERE', rx + rw / 2, ry - 8 * window.devicePixelRatio);
+  augCtx.restore();
+
+  // Scan & Highlight Tracked Strap Pixels
+  const counts = { green: 0, yellow: 0, purple: 0, red: 0 };
+  let rSum = 0, gSum = 0, bSum = 0, hitCount = 0;
+
+  augCtx.save();
+  for (let y = roi.y; y < roi.y + roi.h; y += 2) {
+    for (let x = roi.x; x < roi.x + roi.w; x += 2) {
+      const idx = (y * sampleCanvas.width + x) * 4;
+      const r = px[idx];
+      const g = px[idx + 1];
+      const b = px[idx + 2];
+
+      const [h, s, l] = rgbToHsl(r, g, b);
+      const match = classifyStrap(h, s, l);
+
+      if (match) {
+        counts[match]++;
+        hitCount++;
+        rSum += r; gSum += g; bSum += b;
+
+        const screenX = (sampleCanvas.width - 1 - x) * scaleX;
+        const screenY = y * scaleY;
+        augCtx.fillStyle = BRANCHES[match].color;
+        augCtx.fillRect(screenX, screenY, 3 * scaleX, 3 * scaleY);
+      }
+    }
+  }
+  augCtx.restore();
+
+  // Smooth scores
+  const alpha = 0.25;
+  for (const k of ['green', 'yellow', 'purple', 'red']) {
+    smoothedScores[k] = alpha * counts[k] + (1 - alpha) * smoothedScores[k];
+    const pct = Math.min(100, Math.round((smoothedScores[k] / 130) * 100));
+    document.getElementById(`bar${k.charAt(0).toUpperCase() + k.slice(1)}`).style.width = `${pct}%`;
+  }
+
+  // Update diagnostics
+  if (hitCount > 0) {
+    const avgR = Math.round(rSum / hitCount);
+    const avgG = Math.round(gSum / hitCount);
+    const avgB = Math.round(bSum / hitCount);
+    const [avgH, avgS, avgL] = rgbToHsl(avgR, avgG, avgB);
+
+    document.getElementById('diagSwatch').style.background = `rgb(${avgR}, ${avgG}, ${avgB})`;
+    document.getElementById('diagRgb').textContent = `RGB(${avgR}, ${avgG}, ${avgB})`;
+    document.getElementById('diagHsl').textContent = `H:${Math.round(avgH)}° S:${Math.round(avgS*100)}% L:${Math.round(avgL*100)}%`;
+  }
+
+  // Find top match
+  let topBranch = null;
+  let topScore = 0;
+  for (const k of ['green', 'yellow', 'purple', 'red']) {
+    if (smoothedScores[k] > topScore) {
+      topScore = smoothedScores[k];
+      topBranch = k;
+    }
+  }
+
+  const STRAP_THRESHOLD = 40;
+  if (topBranch && topScore >= STRAP_THRESHOLD) {
+    const b = BRANCHES[topBranch];
+    document.getElementById('diagDecision').textContent = `DETECTED: ${b.label}`;
+    document.getElementById('diagDecision').style.color = b.color;
+
+    document.querySelectorAll('.branch-btn').forEach(btn => btn.classList.remove('active-matched'));
+    document.getElementById(`btn${topBranch.charAt(0).toUpperCase() + topBranch.slice(1)}`).classList.add('active-matched');
+
+    if (autoScan) {
+      const now = Date.now();
+      if (topBranch !== lastDispenseBranch || now - lastDispenseTime > 4500) {
+        lastDispenseBranch = topBranch;
+        lastDispenseTime = now;
+        triggerDispense(topBranch, 'Auto-Detection');
+      }
+    }
+  } else {
+    document.querySelectorAll('.branch-btn').forEach(btn => btn.classList.remove('active-matched'));
+    document.getElementById('diagDecision').textContent = 'Hold strap inside box...';
+    document.getElementById('diagDecision').style.color = 'var(--text-muted)';
+  }
+
+  requestAnimationFrame(renderVideoTracking);
+}
+
+function scanOnce() {
+  if (!isCamActive) return;
+  let topBranch = null;
+  let topScore = 0;
+  for (const k of ['green', 'yellow', 'purple', 'red']) {
+    if (smoothedScores[k] > topScore) {
+      topScore = smoothedScores[k];
+      topBranch = k;
+    }
+  }
+  if (topBranch && topScore > 20) {
+    triggerDispense(topBranch, 'Manual Scan Button');
+  } else {
+    alert('No colored strap detected in reticle. Please align the ID card strap.');
+  }
+}
+
+function triggerDispense(branchKey, source) {
+  const b = BRANCHES[branchKey];
+  document.getElementById('hudStatusDot').classList.add('active');
+  document.getElementById('hudMainText').textContent = `DISPENSING: ${b.label.toUpperCase()}`;
+  document.getElementById('hudSubText').textContent = `Triggered by ${source} • Paper Code: ${b.code}`;
+  dispenseIn3D(branchKey);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THREE.JS 3D DISPENSER (Bright Studio Lighting & Color-Topped Exam Paper)
+// ═══════════════════════════════════════════════════════════════════════════
+let scene, camera, renderer, controls;
+let dispenserGroup;
+let paperStates = {};
+let feedRollers = {};
+let slotLeds = {};
+
+function initThreeScene() {
+  const container = document.getElementById('threeCanvas');
+  const width = container.clientWidth;
+  const height = container.clientHeight || 520;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf1f5f9); // Bright, clean studio background
+
+  camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 100);
+  camera.position.set(0, 4.2, 11.2);
+
+  renderer = new THREE.WebGLRenderer({ canvas: container, antialias: true });
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.maxPolarAngle = Math.PI / 2 + 0.02;
+  controls.minDistance = 4;
+  controls.maxDistance = 20;
+  controls.target.set(0, 0.3, 0);
+
+  // Bright Studio Lighting Rig
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xe2e8f0, 0.85);
+  scene.add(hemiLight);
+
+  const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  mainLight.position.set(6, 12, 8);
+  mainLight.castShadow = true;
+  mainLight.shadow.mapSize.set(2048, 2048);
+  mainLight.shadow.bias = -0.0001;
+  scene.add(mainLight);
+
+  const fillLight = new THREE.DirectionalLight(0xbfdbfe, 0.4);
+  fillLight.position.set(-6, 6, 4);
+  scene.add(fillLight);
+
+  // Clean Studio Ground / Tabletop
+  const floorGeo = new THREE.BoxGeometry(18, 0.1, 14);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.position.y = -1.65;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Subtle circular pedestal under the dispenser
+  const standGeo = new THREE.CylinderGeometry(5.2, 5.4, 0.15, 36);
+  const standMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+  const stand = new THREE.Mesh(standGeo, standMat);
+  stand.position.y = -1.55;
+  stand.receiveShadow = true;
+  scene.add(stand);
+
+  dispenserGroup = new THREE.Group();
+  scene.add(dispenserGroup);
+
+  buildDispenserHardware();
+  buildExamPapers();
+
+  window.addEventListener('resize', onResize);
+  renderLoop();
+}
+
+function reset3DCamera() {
+  controls.reset();
+  camera.position.set(0, 4.2, 11.2);
+  controls.target.set(0, 0.3, 0);
+}
+
+// ─── Create Crisp Procedural Exam Paper Texture ───
+// Generates an A4 sheet with the color-coded top header band
+function createPaperTexture(branchKey) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1448;
+  const ctx = canvas.getContext('2d');
+
+  // Crisp White Paper Sheet
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const b = BRANCHES[branchKey];
+
+  // 1. TOP COLOR-CODED HEADER BAND (Bold & Clear!)
+  ctx.fillStyle = b.color;
+  ctx.fillRect(0, 0, canvas.width, 240);
+
+  // Header Typography
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('COLLEGE OF ENGINEERING & TECHNOLOGY', 512, 65);
+
+  ctx.font = '600 26px sans-serif';
+  ctx.fillText('END SEMESTER UNIVERSITY EXAMINATION - 2026', 512, 110);
+
+  // Branch badge box
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  ctx.fillRect(140, 140, 744, 65);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 32px monospace';
+  ctx.fillText(b.paperTitle, 512, 185);
+
+  // 2. Exam Meta Information
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '600 22px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Subject: ' + b.subject, 60, 295);
+  ctx.fillText('Paper Code: ' + b.code, 60, 330);
+
+  ctx.textAlign = 'right';
+  ctx.fillText('Duration: 3 Hours', 964, 295);
+  ctx.fillText('Max Marks: 100', 964, 330);
+
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(60, 360);
+  ctx.lineTo(964, 360);
+  ctx.stroke();
+
+  // Student details section
+  ctx.fillStyle = '#64748b';
+  ctx.font = '500 20px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('Candidate Roll No: [ ___ ___ ___ ___ ___ ___ ___ ]', 60, 405);
+  ctx.fillText('Hall Ticket No:   [ 2026-ENG-AUT ]   Seat: [ LAB-A ]', 60, 440);
+
+  // 3. Exam Questions Section
+  ctx.fillStyle = b.color;
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('SECTION A — ALL QUESTIONS COMPULSORY (40 Marks)', 60, 515);
+
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '500 20px sans-serif';
+  let qY = 565;
+  b.questions.forEach((q, idx) => {
+    ctx.fillText(`Q${idx + 1}. ${q}`, 60, qY);
+    qY += 32;
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'italic 18px sans-serif';
+    ctx.fillText('      (i) Detailed technical derivation / architecture [6 Marks]', 60, qY);
+    qY += 28;
+    ctx.fillText('      (ii) Practical implementation schema & flow chart [4 Marks]', 60, qY);
+    qY += 45;
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '500 20px sans-serif';
+  });
+
+  ctx.fillStyle = b.color;
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('SECTION B — ADVANCED DESIGN ANALYSIS (60 Marks)', 60, qY + 15);
+  qY += 60;
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '500 20px sans-serif';
+  ctx.fillText('Q4. Design an automated ID-card triggered dispenser circuit with dual-axis servo feed.', 60, qY);
+
+  // Authentication Stamp & Outer Border
+  ctx.strokeStyle = b.color;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '16px monospace';
+  ctx.fillText('OFFICIAL QUESTION PAPER • COLOR-CODED DISPENSED • NO: ' + b.code + '-2026', 60, 1400);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  return texture;
+}
+
+// ─── Build Clean, Modern Dispenser Machine ───
+function buildDispenserHardware() {
+  const keys = ['green', 'yellow', 'purple', 'red'];
+  const slotX = [-2.85, -0.95, 0.95, 2.85];
+
+  // 1. Main Appliance Chassis (Clean Slate Gray / Aluminum body)
+  const chassisGeo = new THREE.BoxGeometry(8.4, 4.8, 3.2);
+  const chassisMat = new THREE.MeshStandardMaterial({
+    color: 0x334155, // Clean slate body
+    roughness: 0.35,
+    metalness: 0.35
+  });
+  const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+  chassis.position.y = 1.0;
+  chassis.castShadow = true;
+  chassis.receiveShadow = true;
+  dispenserGroup.add(chassis);
+
+  // 2. Top Header Bezel
+  const topCover = new THREE.Mesh(
+    new THREE.BoxGeometry(8.6, 0.22, 3.4),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.5 })
+  );
+  topCover.position.y = 3.5;
+  topCover.castShadow = true;
+  dispenserGroup.add(topCover);
+
+  // 3. Branded Title Plate on Top Front
+  const titlePlate = new THREE.Mesh(
+    new THREE.BoxGeometry(5.6, 0.45, 0.08),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 })
+  );
+  titlePlate.position.set(0, 3.05, 1.62);
+  dispenserGroup.add(titlePlate);
+
+  // 4. Central Scanner Sensor Array
+  const scanHousing = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 0.8, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 })
+  );
+  scanHousing.position.set(0, 2.1, 1.63);
+  dispenserGroup.add(scanHousing);
+
+  const scanLens = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.18, 0.1, 24),
+    new THREE.MeshStandardMaterial({ color: 0x2563eb, emissive: 0x2563eb, emissiveIntensity: 0.6, metalness: 0.8 })
+  );
+  scanLens.rotation.x = Math.PI / 2;
+  scanLens.position.set(0, 2.1, 1.72);
+  dispenserGroup.add(scanLens);
+
+  // 5. 4 Branch Compartments & Output Slots
+  keys.forEach((k, idx) => {
+    const b = BRANCHES[k];
+    const x = slotX[idx];
+
+    // Transparent Compartment Window (shows loaded paper stacks)
+    const winGeo = new THREE.BoxGeometry(1.45, 2.6, 0.05);
+    const winMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.3,
+      roughness: 0.1,
+      transmission: 0.7
+    });
+    const win = new THREE.Mesh(winGeo, winMat);
+    win.position.set(x, 1.1, 1.61);
+    dispenserGroup.add(win);
+
+    // Internal paper stack inside
+    const stackGeo = new THREE.BoxGeometry(1.2, 2.2, 1.8);
+    const stackMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+    const stack = new THREE.Mesh(stackGeo, stackMat);
+    stack.position.set(x, 1.0, 0.3);
+    dispenserGroup.add(stack);
+
+    // Color cap on top of stack
+    const stackCap = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.3, 1.8),
+      new THREE.MeshStandardMaterial({ color: b.hex })
+    );
+    stackCap.position.set(x, 2.05, 0.3);
+    dispenserGroup.add(stackCap);
+
+    // Output Dispense Slot Mouth (Where paper emerges!)
+    const slotMouth = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 0.14, 0.15),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 })
+    );
+    slotMouth.position.set(x, -0.85, 1.62);
+    dispenserGroup.add(slotMouth);
+
+    // Motorized Feed Roller
+    const roller = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 1.5, 16),
+      new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.8, roughness: 0.2 })
+    );
+    roller.rotation.z = Math.PI / 2;
+    roller.position.set(x, -0.76, 1.62);
+    dispenserGroup.add(roller);
+    feedRollers[k] = roller;
+
+    // Distinct Color Label Badge above slot
+    const badge = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 0.22, 0.04),
+      new THREE.MeshStandardMaterial({ color: b.hex, roughness: 0.3 })
+    );
+    badge.position.set(x, -0.62, 1.63);
+    dispenserGroup.add(badge);
+
+    // Status LED above bay
+    const led = new THREE.Mesh(
+      new THREE.SphereGeometry(0.09, 16, 16),
+      new THREE.MeshStandardMaterial({ color: b.hex, emissive: b.hex, emissiveIntensity: 0.25 })
+    );
+    led.position.set(x, 2.65, 1.63);
+    dispenserGroup.add(led);
+    slotLeds[k] = led;
+  });
+
+  // 6. Brushed Stainless Steel Output Tray (Slanted forward to catch papers)
+  const trayGeo = new THREE.BoxGeometry(8.4, 0.08, 2.8);
+  const trayMat = new THREE.MeshStandardMaterial({
+    color: 0x475569,
+    roughness: 0.3,
+    metalness: 0.6
+  });
+  const tray = new THREE.Mesh(trayGeo, trayMat);
+  tray.position.set(0, -1.5, 2.8);
+  tray.rotation.x = 0.06;
+  tray.receiveShadow = true;
+  dispenserGroup.add(tray);
+
+  const trayLip = new THREE.Mesh(
+    new THREE.BoxGeometry(8.4, 0.3, 0.08),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 })
+  );
+  trayLip.position.set(0, -1.35, 4.18);
+  dispenserGroup.add(trayLip);
+
+  // Feet
+  for (const fx of [-3.8, 3.8]) {
+    for (const fz of [-1.2, 1.2]) {
+      const foot = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.22, 0.15, 16),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 })
+      );
+      foot.position.set(fx, -1.55, fz);
+      dispenserGroup.add(foot);
+    }
+  }
+}
+
+// ─── Build Exam Paper Meshes ───
+function buildExamPapers() {
+  const keys = ['green', 'yellow', 'purple', 'red'];
+  const slotX = [-2.85, -0.95, 0.95, 2.85];
+
+  keys.forEach((k, idx) => {
+    const x = slotX[idx];
+    const tex = createPaperTexture(k);
+
+    const paperGeo = new THREE.PlaneGeometry(1.35, 1.9, 16, 16);
+    const paperMat = new THREE.MeshStandardMaterial({
+      map: tex,
+      roughness: 0.85,
+      metalness: 0.05,
+      side: THREE.DoubleSide
+    });
+
+    const paper = new THREE.Mesh(paperGeo, paperMat);
+    paper.castShadow = true;
+    paper.receiveShadow = true;
+    paper.visible = false;
+    paper.position.set(x, -0.85, 1.5);
+    dispenserGroup.add(paper);
+
+    paperStates[k] = {
+      mesh: paper,
+      baseX: x,
+      isDispensing: false,
+      progress: 0,
+      phase: 'idle'
+    };
+  });
+}
+
+// ─── Dispense Animation Trigger ───
+function dispenseIn3D(branchKey) {
+  const state = paperStates[branchKey];
+  if (!state || state.isDispensing) return;
+
+  const b = BRANCHES[branchKey];
+
+  if (slotLeds[branchKey]) {
+    slotLeds[branchKey].material.emissiveIntensity = 1.0;
+  }
+
+  const p = state.mesh;
+  p.visible = true;
+  p.position.set(state.baseX, -0.85, 1.2);
+  p.rotation.set(-Math.PI / 2 + 0.1, 0, 0);
+
+  state.isDispensing = true;
+  state.progress = 0;
+  state.phase = 'ejecting';
+}
+
+function updatePhysics(dt) {
+  const keys = ['green', 'yellow', 'purple', 'red'];
+
+  keys.forEach(k => {
+    const state = paperStates[k];
+    if (!state.isDispensing) return;
+
+    const p = state.mesh;
+    state.progress += dt;
+
+    if (feedRollers[k]) {
+      feedRollers[k].rotation.x += dt * 12;
+    }
+
+    if (state.phase === 'ejecting') {
+      // Paper slides out of slot — colored header appears first!
+      const duration = 1.2;
+      const t = Math.min(1.0, state.progress / duration);
+      const ease = 1 - Math.pow(1 - t, 3);
+
+      p.position.z = 1.2 + ease * 1.8;
+      p.position.y = -0.85 - ease * 0.25;
+      p.rotation.x = -Math.PI / 2 + 0.1 - ease * 0.35;
+
+      if (t >= 1.0) {
+        state.phase = 'dropping';
+        state.progress = 0;
+      }
+    } else if (state.phase === 'dropping') {
+      // Paper lands gently onto collection tray
+      const duration = 0.55;
+      const t = Math.min(1.0, state.progress / duration);
+      const bounce = Math.sin(t * Math.PI) * 0.08;
+
+      p.position.y = -1.1 - t * 0.35 + bounce;
+      p.position.z = 3.0 + t * 0.55;
+      p.rotation.x = -Math.PI / 2 + 0.06;
+
+      if (t >= 1.0) {
+        state.phase = 'ready';
+        state.progress = 0;
+
+        document.getElementById('hudStatusDot').classList.remove('active');
+        document.getElementById('hudMainText').textContent = 'EXAM PAPER READY IN TRAY';
+        document.getElementById('hudSubText').textContent = `Collect ${BRANCHES[k].label} paper from tray.`;
+
+        if (slotLeds[k]) slotLeds[k].material.emissiveIntensity = 0.25;
+      }
+    } else if (state.phase === 'ready') {
+      if (state.progress > 8.0) {
+        p.visible = false;
+        state.isDispensing = false;
+        state.phase = 'idle';
+      }
+    }
+  });
+}
+
+function renderLoop() {
+  requestAnimationFrame(renderLoop);
+  const dt = clock.getDelta();
+
+  controls.update();
+  updatePhysics(dt);
+
+  renderer.render(scene, camera);
+}
+
+const clock = new THREE.Clock();
+
+function onResize() {
+  const container = document.getElementById('threeCanvas');
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  if (!w || !h) return;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  initThreeScene();
+  setTimeout(() => {
+    startWebcam();
+  }, 400);
+});
+</script>
+
+</body>
+</html>
